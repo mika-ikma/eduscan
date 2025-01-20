@@ -22,7 +22,6 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "sesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
