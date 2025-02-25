@@ -10,7 +10,6 @@ import {
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-
 import { BASE_API_URL } from "../../config.json";
 
 const TeacherDashboard = ({ navigation }) => {
@@ -25,6 +24,7 @@ const TeacherDashboard = ({ navigation }) => {
         navigation.replace("Login");
         return;
       }
+      console.log("Токен:", token);
 
       const response = await axios.get(`${BASE_API_URL}/profile/`, {
         headers: { Authorization: `Token ${token}` },
@@ -86,30 +86,19 @@ const TeacherDashboard = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.profileContainer}>
+      {/* Верхний блок с кнопкой выхода */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Выйти</Text>
+        </TouchableOpacity>
+      </View>
 
+      {/* Данные профиля */}
+      <View style={styles.profileContainer}>
         <Text style={styles.profileInfo}>Имя: {user.username}</Text>
         <Text style={styles.profileInfo}>Email: {user.email}</Text>
         <Text style={styles.profileInfo}>Роль: {user.role}</Text>
-        <TouchableOpacity style={styles.button} onPress={fetchUserData}>
-          <Text style={styles.buttonText}>Обновить данные</Text>
-        </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate("TeacherSubjects")}
-      >
-        <Text style={styles.buttonText}>Мои Предметы</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate("CreateSubject")}
-      >
-        <Text style={styles.buttonText}>Создать Предмет</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Выйти</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -120,11 +109,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     padding: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#659DBD",
+  header: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginBottom: 20,
+  },
+  logoutButton: {
+    backgroundColor: "#659DBD",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+  },
+  logoutButtonText: {
+    color: "#fff",
+    fontSize: 14,
   },
   profileContainer: {
     padding: 10,
@@ -134,38 +132,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eee",
   },
-  profileTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-  },
   profileInfo: {
     fontSize: 16,
     marginVertical: 5,
     color: "#555",
-  },
-  button: {
-    backgroundColor: "#659DBD",
-    paddingVertical: 10,
-    borderRadius: 5,
-    marginVertical: 10,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 15,
-  },
-  logoutButton: {
-    backgroundColor: "#ff4d4d",
-    paddingVertical: 10,
-    borderRadius: 5,
-    alignItems: "center",
-    marginTop: 30,
-  },
-  logoutButtonText: {
-    color: "#fff",
-    fontSize: 16,
   },
   errorContainer: {
     flex: 1,

@@ -6,26 +6,33 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_API_URL } from "../../config.json";
 
 const Profile = () => {
-  const [user, setUser] = useState(null); // Храним данные пользователя
-  const [loading, setLoading] = useState(true); // Флаг загрузки
+  const [user, setUser] = useState(null); 
+  const [loading, setLoading] = useState(true); 
 
   const fetchUserData = async () => {
     try {
       const token = await AsyncStorage.getItem("token");
+      console.log("Токен, полученный из AsyncStorage:", token);
+      
       if (!token) {
         Alert.alert("Ошибка", "Authorization token not found.");
-        navigation.replace("Login"); // Navigate to login screen if token is missing
+        navigation.replace("Login"); 
         return;
       }
+
+      axios.defaults.headers.common["Authorization"] = `Token ${token}`;
+      console.log("Установленный заголовок Authorization:", axios.defaults.headers.common["Authorization"]);
 
       const response = await axios.get(`${BASE_API_URL}/profile/`, {
         headers: { Authorization: `Token ${token}` },
       });
 
+      console.log("Ответ профиля пользователя:", response.data);
+
       setUser(response.data);
       setLoading(false);
     } catch (error) {
-      console.error("Ошибка получения данных пользователя:", error);
+      console.error("Ошибка получения данных пользователя:", error.response?.data || error.message);
       Alert.alert("Ошибка", "Не удалось загрузить данные пользователя.");
       setLoading(false);
     }

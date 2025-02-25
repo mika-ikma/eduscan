@@ -1,3 +1,4 @@
 {
-  "BASE_API_URL": "https://app.exotic.report/api"
+  "BASE_API_URL": "https://eduscan.kz/api",
+  "CONST_BASE_API_URL": "https://papua-reform-bundle-md.trycloudflare.com/api"
 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import { BASE_API_URL } from "../../config.json";
 
 export default function LoginScreen({ navigation }) {
@@ -19,44 +18,102 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const checkAuth = async () => {
+    try {
+      console.log("Вызов checkAuth...");
+      const token = await AsyncStorage.getItem("token");
+      console.log("Токен из AsyncStorage:", token);
+  
+      if (token) {
+        // Устанавливаем токен в заголовок по умолчанию
+        axios.defaults.headers.common["Authorization"] = `Token ${token}`;
+        console.log("Токен установлен в заголовок:", axios.defaults.headers.common["Authorization"]);
+        
+        // Выполняем запрос для проверки профиля пользователя
+        const response = await axios.get(`${BASE_API_URL}/profile/`);
+        console.log("Ответ профиля:", response.data);
+        
+        if (response.status === 200) {
+          console.log("Профиль успешно получен, перенаправление на Dashboard");
+          navigation.replace("Dashboard", { role: response.data.role });
+        } else {
+          console.log("Ошибка профиля, статус:", response.status);
+          await AsyncStorage.removeItem("token"); // Удаляем токен, если запрос неудачен
+          navigation.replace("Login");
+        }
+      } else {
+        console.log("Токен отсутствует.");
+      }
+    } catch (error) {
+      console.error("Ошибка проверки токена:", error.response?.data || error.message);
+      await AsyncStorage.removeItem("token"); // Удаляем токен в случае ошибки
+      navigation.replace("Login");
+    }
+  };
+  
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  // Получение CSRF-токена перед логином
+  const getCsrfToken = async () => {
+    try {
+      const response = await axios.get(`${BASE_API_URL}/csrf/`);
+      return response.data.csrfToken;
+    } catch (error) {
+      console.error("Ошибка получения CSRF-токена:", error);
+      return null;
+    }
+  };
+
+  // Обработчик входа
   const handleLogin = async () => {
     if (!username || !password) {
       Alert.alert("Ошибка", "Введите имя пользователя и пароль!");
       return;
     }
 
-    if (username.length < 3 || password.length < 6) {
-      Alert.alert("Ошибка", "Имя пользователя или пароль слишком короткие.");
-      return;
-    }
-
     setLoading(true);
     try {
-      const response = await axios.post(`${BASE_API_URL}/login/`, {
-        username,
-        password,
-      });
+      const csrfToken = await getCsrfToken();
+
+      if (!csrfToken) {
+        Alert.alert("Ошибка", "Не удалось получить CSRF-токен. Попробуйте еще раз.");
+        setLoading(false);
+        return;
+      }
+
+      const response = await axios.post(
+        `${BASE_API_URL}/login/`,
+        { username, password },
+        { headers: { "X-CSRFToken": csrfToken, "Content-Type": "application/json" } }
+      );
 
       if (response.status === 200) {
         const { token, role } = response.data;
+        console.log("Токен, полученный после входа:", token);
+        console.log("Роль пользователя после входа:", role);
+      
+        // Сохраняем токен и роль в AsyncStorage
         await AsyncStorage.setItem("token", token);
         await AsyncStorage.setItem("role", role);
-
-        if (role === "teacher") {
-          navigation.replace("TeacherDashboard");
-        } else {
-          navigation.replace("StudentDashboard");
-        }
-
+        
+        // Проверка, правильно ли сохранился токен
+        const savedToken = await AsyncStorage.getItem("token");
+        const savedRole = await AsyncStorage.getItem("role");
+        console.log("Сохранённый токен в AsyncStorage:", savedToken);
+        console.log("Сохранённая роль в AsyncStorage:", savedRole);
+      
+        axios.defaults.headers.common["Authorization"] = `Token ${token}`;
+        console.log("Токен установлен в заголовок:", axios.defaults.headers.common["Authorization"]);
+      
+        navigation.replace("Dashboard", { role });
         Alert.alert("Успешно", "Вы успешно вошли в систему!");
       }
     } catch (error) {
-      console.error("Login Error:", error.response || error.message);
-      if (error.response?.data?.detail) {
-        Alert.alert("Ошибка", error.response.data.detail);
-      } else {
-        Alert.alert("Ошибка", "Не удалось авторизоваться. Попробуйте еще раз.");
-      }
+      console.error("Login Error:", error.response?.data || error.message);
+      Alert.alert("Ошибка", "Неправильное имя пользователя или пароль.");
     } finally {
       setLoading(false);
     }
@@ -64,13 +121,14 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {loading ? <ActivityIndicator size="large" color="#0000ff" /> : null}
+      {loading && <ActivityIndicator size="large" color="#0000ff" />}
       <Text style={styles.title}>Вход</Text>
       <TextInput
         style={styles.input}
         placeholder="Имя пользователя"
         value={username}
         onChangeText={setUsername}
+        autoCapitalize="none"
       />
       <TextInput
         style={styles.input}
@@ -90,6 +148,7 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
+// Стили для экрана
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -37,8 +37,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "41a8b81e-7e9a-4a41-a5b3-273ae471bf03"
+        "projectId": "e5b4bcff-38b5-4c57-8e96-81748580efc4"
       }
-    }
+    },
+    "owner": "mika-ikma"
   }
 }

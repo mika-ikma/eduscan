@@ -4,13 +4,11 @@ import {
   Text,
   TextInput,
   Button,
-  Image,
   Alert,
   ActivityIndicator,
-  StyleSheet,  // Добавьте StyleSheet
+  StyleSheet,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
-import * as ImagePicker from "expo-image-picker";
+import DropDownPicker from "react-native-dropdown-picker";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_API_URL } from "../../config.json";
@@ -20,97 +18,66 @@ const RegisterScreen = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("student");
-  const [photo, setPhoto] = useState(null);
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const pickImage = async () => {
-    const permissionStatus = await askForPermission();
+  // Стейт для открытия выпадающего списка
+  const [openRole, setOpenRole] = useState(false);
 
-    if (permissionStatus !== "granted") {
-      Alert.alert("Permission to access the camera is required!");
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 1,
-    });
-
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setPhoto(result.assets[0].uri);
-    } else {
-      Alert.alert("Error", "No photo was taken or the operation was canceled.");
-    }
-  };
-
-  const askForPermission = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    return status;
-  };
+  // Доступные роли
+  const roles = [
+    { label: "Студент", value: "student" },
+    { label: "Учитель", value: "teacher" },
+  ];
 
   const handleSubmit = async () => {
-    if (!username || !email || !password || !confirmPassword || !photo) {
-      Alert.alert("Error", "All fields are required!");
+    if (!username || !email || !password || !confirmPassword || !role) {
+      Alert.alert("Ошибка", "Все поля обязательны для заполнения!");
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match!");
+      Alert.alert("Ошибка", "Пароли не совпадают!");
       return;
     }
 
     const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);
     if (!isValidEmail(email)) {
-      Alert.alert("Error", "Please enter a valid email address.");
+      Alert.alert("Ошибка", "Введите корректный email.");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("username", username);
-    formData.append("email", email);
-    formData.append("password", password);
-    formData.append("password2", confirmPassword);
-    formData.append("role", role);
-    formData.append("photo", {
-      uri: photo,
-      type: "image/jpeg",
-      name: "photo.jpg",
-    });
+    const formData = {
+      username,
+      email,
+      password,
+      password2: confirmPassword, // Оставил password2, если API так ожидает
+      role,
+    };
 
     try {
       setLoading(true);
-      const response = await axios.post(`${BASE_API_URL}/register/`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const response = await axios.post(`${BASE_API_URL}/register/`, formData);
 
       if (response.status === 201) {
         const { token, user } = response.data;
         if (token) {
           await AsyncStorage.setItem("token", token);
         }
-        const userRole = user?.role || null;
 
+        const userRole = user?.role || null;
         if (!userRole) {
-          Alert.alert("Error", "Invalid role received from the server.");
+          Alert.alert("Ошибка", "Роль пользователя не получена.");
           return;
         }
 
-        Alert.alert("Success", "Registration successful!");
-
-        if (userRole === "student") {
-          navigation.navigate("StudentDashboard");
-        } else if (userRole === "teacher") {
-          navigation.navigate("TeacherDashboard");
-        }
+        Alert.alert("Успешно", "Вы успешно зарегистрировались!");
+        navigation.replace("Dashboard", { role: userRole });
       } else {
-        const errorMessage = response.data?.message || "Registration failed";
-        Alert.alert("Error", errorMessage);
+        Alert.alert("Ошибка", response.data?.message || "Ошибка регистрации.");
       }
     } catch (error) {
-      Alert.alert("Error", error.response?.data?.detail || "An error occurred.");
+      Alert.alert("Ошибка", error.response?.data?.detail || "Ошибка сети.");
     } finally {
       setLoading(false);
     }
@@ -141,7 +108,6 @@ const RegisterScreen = ({ navigation }) => {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-        placeholderTextColor="#000000"
       />
 
       <Text style={styles.label}>Подтвердите пароль:</Text>
@@ -150,25 +116,23 @@ const RegisterScreen = ({ navigation }) => {
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry
-        placeholderTextColor="#000000"
       />
 
-      <Text style={styles.roleLabel}>Выберите роль:</Text>
-      <Picker
-        selectedValue={role}
-        onValueChange={setRole}
-        style={styles.picker}
-      >
-        <Picker.Item label="Student" value="student" />
-        <Picker.Item label="Teacher" value="teacher" />
-      </Picker>
-
-      <Text style={styles.label}>Загрузите фотографию:</Text>
-      <Button title="Сделать фотографию" onPress={pickImage} />
-      {photo && <Image source={{ uri: photo }} style={styles.image} />}
+      <Text style={styles.label}>Выберите роль:</Text>
+      <DropDownPicker
+        open={openRole}
+        value={role}
+        items={roles}
+        setOpen={setOpenRole}
+        setValue={setRole}
+        setItems={() => roles}
+        placeholder="Выберите роль"
+        style={styles.dropdown}
+        dropDownContainerStyle={styles.dropdownContainer}
+      />
 
       <Button
-        title={loading ? "Registering..." : "Зарегистрироваться"}
+        title={loading ? "Регистрация..." : "Зарегистрироваться"}
         onPress={handleSubmit}
         disabled={loading}
       />
@@ -182,47 +146,39 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
     padding: 20,
+    paddingTop: 80,
   },
   header: {
     fontSize: 24,
-    color: "#659DBD",
+    color: "#007AFF",
     marginBottom: 20,
     fontWeight: "bold",
     textAlign: "center",
   },
   label: {
-    color: "#659DBD",
+    color: "#007AFF",
     marginBottom: 5,
     fontSize: 16,
-  },
-  roleLabel: {
-    color: "#659DBD",
-    marginBottom: 5,
-    fontSize: 18,
     fontWeight: "bold",
   },
   input: {
-    height: 40,
-    borderColor: "#659DBD",
+    height: 45,
+    borderColor: "#007AFF",
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 8,
     marginBottom: 10,
     paddingHorizontal: 10,
     backgroundColor: "#FFFFFF",
     color: "#000000",
   },
-  picker: {
-    height: 55,
-    backgroundColor: "#FFFFFF",
+  dropdown: {
+    borderColor: "#007AFF",
+    borderRadius: 8,
+    backgroundColor: "#F5F5F5",
     marginBottom: 10,
-    borderRadius: 5,
   },
-  image: {
-    width: 100,
-    height: 100,
-    marginVertical: 10,
-    alignSelf: "center",
-    borderRadius: 5,
+  dropdownContainer: {
+    borderColor: "#007AFF",
   },
 });
 
